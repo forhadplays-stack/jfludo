@@ -1,0 +1,6 @@
+{
+  "name": "JF Ludo",
+  "description": "A complete, responsive Ludo King inspired board game with Pass & Play and Online Virtual Multiplayer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

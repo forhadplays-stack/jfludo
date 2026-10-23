@@ -1,0 +1,2193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>JF Ludo - The Royal Ludo Experience</title>
+<!-- Firebase App and Realtime Database CDNs -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<style>
+  :root {
+    --bg-navy: #07112c;
+    --bg-royal: #0c1d4d;
+    --card-blue: #132a68;
+    --gold-1: #ffd700;
+    --gold-2: #ffaa00;
+    --red-pawn: #e53935;
+    --green-pawn: #2e7d32;
+    --yellow-pawn: #fbc02d;
+    --blue-pawn: #1976d2;
+    --dice-green-light: #00e676;
+    --dice-green-dark: #00873a;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 30%, #152e75 0%, #0c1c4b 55%, #050b1f 100%);
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Pattern overlay */
+  .pattern-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+      radial-gradient(rgba(255, 215, 0, 0.08) 1.5px, transparent 1.5px),
+      radial-gradient(rgba(30, 144, 255, 0.08) 1.5px, transparent 1.5px);
+    background-size: 32px 32px;
+    background-position: 0 0, 16px 16px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* App Container */
+  #app-root {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    z-index: 1;
+  }
+
+  /* Top Header */
+  header.top-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    background: linear-gradient(180deg, rgba(8, 20, 56, 0.95) 0%, rgba(13, 31, 82, 0.85) 100%);
+    border-bottom: 2px solid rgba(255, 215, 0, 0.35);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    z-index: 10;
+  }
+
+  .brand-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .crown-icon {
+    font-size: 24px;
+    filter: drop-shadow(0 2px 4px rgba(255, 215, 0, 0.6));
+    animation: crownFloat 3s ease-in-out infinite alternate;
+  }
+
+  @keyframes crownFloat {
+    0% { transform: translateY(0px) rotate(-3deg); }
+    100% { transform: translateY(-3px) rotate(3deg); }
+  }
+
+  .brand-title {
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    background: linear-gradient(180deg, #fff3a8 0%, #ffd700 50%, #f39c12 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1b387e 0%, #102353 100%);
+    border: 1.5px solid rgba(255, 215, 0, 0.4);
+    color: #ffd700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    transition: transform 0.15s, background 0.15s;
+  }
+
+  .icon-btn:active {
+    transform: scale(0.92);
+  }
+
+  /* Game Main Stage */
+  #game-stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    padding: 4px;
+  }
+
+  /* Active Turn Info Pill */
+  .turn-pill {
+    margin-bottom: 6px;
+    background: rgba(10, 24, 65, 0.85);
+    border: 1.5px solid rgba(255, 215, 0, 0.5);
+    border-radius: 20px;
+    padding: 4px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    animation: pulseBorder 2s infinite;
+  }
+
+  @keyframes pulseBorder {
+    0%, 100% { border-color: rgba(255, 215, 0, 0.4); }
+    50% { border-color: rgba(255, 215, 0, 0.9); }
+  }
+
+  .turn-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 8px currentColor;
+  }
+
+  /* Canvas Container */
+  .canvas-wrapper {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 0 3px #ffd700, 0 0 20px rgba(255, 215, 0, 0.35);
+    background: #000;
+    touch-action: none;
+  }
+
+  #ludo-canvas {
+    display: block;
+    cursor: pointer;
+  }
+
+  /* Bottom Control HUD */
+  #bottom-hud {
+    width: 100%;
+    background: linear-gradient(0deg, #071336 0%, #0e245e 80%, #153482 100%);
+    border-top: 2px solid rgba(255, 215, 0, 0.5);
+    padding: 10px 12px 14px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.6);
+    position: relative;
+    z-index: 10;
+  }
+
+  /* Player cards */
+  .hud-players-left, .hud-players-right {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100px;
+  }
+
+  .hud-player-badge {
+    background: rgba(8, 20, 56, 0.8);
+    border: 1.5px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.3s;
+    position: relative;
+  }
+
+  .hud-player-badge.active {
+    border-color: #ffd700;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, rgba(20, 45, 115, 0.9) 100%);
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+    transform: scale(1.05);
+  }
+
+  .hud-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: bold;
+    color: #fff;
+    border: 1.5px solid #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    flex-shrink: 0;
+  }
+
+  .hud-pinfo {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .hud-pname {
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .hud-pstatus {
+    font-size: 9px;
+    color: #ffd700;
+    font-weight: 600;
+  }
+
+  /* Center Dice Dock */
+  .hud-center-dice {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .dice-halo {
+    position: absolute;
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.5) 0%, rgba(255, 215, 0, 0) 70%);
+    animation: haloPulse 1.5s infinite;
+    pointer-events: none;
+  }
+
+  @keyframes haloPulse {
+    0%, 100% { transform: scale(0.9); opacity: 0.6; }
+    50% { transform: scale(1.2); opacity: 1; }
+  }
+
+  /* 3D Dice styling */
+  .dice-box {
+    width: 58px;
+    height: 58px;
+    background: linear-gradient(145deg, #18e078 0%, #00b050 50%, #006b30 100%);
+    border: 3px solid #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.8), inset 0 -3px 6px rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    transition: transform 0.12s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  .dice-box:active {
+    transform: scale(0.92);
+  }
+
+  .dice-box.disabled {
+    opacity: 0.6;
+    filter: grayscale(40%);
+    cursor: not-allowed;
+  }
+
+  .dice-box.rolling {
+    animation: diceTumble 0.6s linear;
+  }
+
+  @keyframes diceTumble {
+    0% { transform: rotate(0deg) scale(0.95); }
+    25% { transform: rotate(90deg) scale(1.15) translateY(-6px); }
+    50% { transform: rotate(180deg) scale(0.9) translateY(4px); }
+    75% { transform: rotate(270deg) scale(1.1) translateY(-3px); }
+    100% { transform: rotate(360deg) scale(1); }
+  }
+
+  /* Dice Dot Layouts */
+  .dice-grid {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    padding: 3px;
+    pointer-events: none;
+  }
+
+  .dice-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ffffff;
+    margin: auto;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(0,0,0,0.3);
+    opacity: 0;
+  }
+
+  .dice-dot.show {
+    opacity: 1;
+  }
+
+  .dice-instruction {
+    font-size: 11px;
+    font-weight: 800;
+    color: #ffd700;
+    margin-top: 5px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+    letter-spacing: 0.5px;
+  }
+
+  /* Modals / Overlays */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(3, 8, 26, 0.85);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    padding: 16px;
+  }
+
+  .modal-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .modal-card {
+    width: 100%;
+    max-width: 420px;
+    background: linear-gradient(180deg, #132a68 0%, #0b1a45 100%);
+    border: 2px solid #ffd700;
+    border-radius: 18px;
+    padding: 22px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(255, 215, 0, 0.3);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    transform: translateY(20px);
+    transition: transform 0.25s ease;
+  }
+
+  .modal-overlay.open .modal-card {
+    transform: translateY(0);
+  }
+
+  .modal-title {
+    font-size: 22px;
+    font-weight: 900;
+    text-align: center;
+    background: linear-gradient(180deg, #fff2a3 0%, #ffd700 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .modal-close-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: #fff;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  /* Form Elements */
+  .btn-primary {
+    background: linear-gradient(180deg, #ffdd28 0%, #f39c12 100%);
+    border: 2px solid #fff;
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: 16px;
+    font-weight: 900;
+    color: #1a0f00;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(243, 156, 18, 0.5), inset 0 2px 2px rgba(255, 255, 255, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: transform 0.15s;
+    width: 100%;
+  }
+
+  .btn-primary:active {
+    transform: scale(0.96);
+  }
+
+  .btn-secondary {
+    background: linear-gradient(180deg, #2b55b8 0%, #153279 100%);
+    border: 1.5px solid rgba(255, 215, 0, 0.5);
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: transform 0.15s;
+    width: 100%;
+  }
+
+  .btn-secondary:active {
+    transform: scale(0.96);
+  }
+
+  .menu-options-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .option-selector {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .opt-btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1.5px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    text-align: center;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+
+  .opt-btn.active {
+    background: linear-gradient(135deg, #ffd700 0%, #f39c12 100%);
+    color: #1a0f00;
+    border-color: #fff;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+  }
+
+  .text-input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1.5px solid rgba(255, 215, 0, 0.4);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    outline: none;
+    text-align: center;
+    letter-spacing: 2px;
+  }
+
+  .text-input:focus {
+    border-color: #ffd700;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  }
+
+  .status-notice {
+    font-size: 13px;
+    color: #90caf9;
+    text-align: center;
+    line-height: 1.4;
+  }
+
+  /* Room code display */
+  .room-code-tag {
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 6px;
+    color: #ffd700;
+    background: rgba(0, 0, 0, 0.45);
+    border: 2px dashed #ffd700;
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+  }
+
+  /* Confetti celebration */
+  #confetti-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 200;
+  }
+
+  /* Toast Notification */
+  #toast-msg {
+    position: fixed;
+    top: 64px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: rgba(14, 28, 70, 0.95);
+    border: 2px solid #ffd700;
+    color: #fff;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 8px 18px;
+    border-radius: 30px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.25s, opacity 0.25s;
+    z-index: 150;
+    white-space: nowrap;
+  }
+
+  #toast-msg.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<div class="pattern-bg"></div>
+
+<div id="app-root">
+  <!-- Top Bar -->
+  <header class="top-nav">
+    <div class="brand-group">
+      <span class="crown-icon">👑</span>
+      <div class="brand-title">JF LUDO</div>
+    </div>
+    <div class="header-actions">
+      <button id="btn-sound-toggle" class="icon-btn" title="Toggle Sound">🔊</button>
+      <button id="btn-rules" class="icon-btn" title="Game Rules">📜</button>
+      <button id="btn-open-menu" class="icon-btn" title="Menu">⚙️</button>
+    </div>
+  </header>
+
+  <!-- Game Stage -->
+  <main id="game-stage">
+    <div id="turn-banner" class="turn-pill">
+      <div id="turn-color-indicator" class="turn-dot" style="background:#1976d2; color:#1976d2;"></div>
+      <span id="turn-text-label">Blue's Turn - Roll Dice</span>
+    </div>
+
+    <div class="canvas-wrapper">
+      <canvas id="ludo-canvas" width="480" height="480"></canvas>
+    </div>
+  </main>
+
+  <!-- Bottom HUD Bar -->
+  <footer id="bottom-hud">
+    <!-- Left Players: Blue & Red -->
+    <div class="hud-players-left">
+      <div id="badge-blue" class="hud-player-badge">
+        <div class="hud-avatar" style="background: var(--blue-pawn);">B</div>
+        <div class="hud-pinfo">
+          <span class="hud-pname" id="name-blue">Blue</span>
+          <span class="hud-pstatus" id="stat-blue">Waiting</span>
+        </div>
+      </div>
+      <div id="badge-red" class="hud-player-badge">
+        <div class="hud-avatar" style="background: var(--red-pawn);">R</div>
+        <div class="hud-pinfo">
+          <span class="hud-pname" id="name-red">Red</span>
+          <span class="hud-pstatus" id="stat-red">Waiting</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center 3D Animated Dice -->
+    <div class="hud-center-dice">
+      <div id="dice-glow" class="dice-halo"></div>
+      <div id="main-dice" class="dice-box" title="Tap to Roll">
+        <div class="dice-grid">
+          <div class="dice-dot" id="d1"></div>
+          <div class="dice-dot" id="d2"></div>
+          <div class="dice-dot" id="d3"></div>
+          <div class="dice-dot" id="d4"></div>
+          <div class="dice-dot" id="d5"></div>
+          <div class="dice-dot" id="d6"></div>
+          <div class="dice-dot" id="d7"></div>
+          <div class="dice-dot" id="d8"></div>
+          <div class="dice-dot" id="d9"></div>
+        </div>
+      </div>
+      <div class="dice-instruction" id="dice-help-text">TAP DICE</div>
+    </div>
+
+    <!-- Right Players: Green & Yellow -->
+    <div class="hud-players-right">
+      <div id="badge-green" class="hud-player-badge">
+        <div class="hud-avatar" style="background: var(--green-pawn);">G</div>
+        <div class="hud-pinfo">
+          <span class="hud-pname" id="name-green">Green</span>
+          <span class="hud-pstatus" id="stat-green">Waiting</span>
+        </div>
+      </div>
+      <div id="badge-yellow" class="hud-player-badge">
+        <div class="hud-avatar" style="background: var(--yellow-pawn);">Y</div>
+        <div class="hud-pinfo">
+          <span class="hud-pname" id="name-yellow">Yellow</span>
+          <span class="hud-pstatus" id="stat-yellow">Waiting</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- Modal: Main Menu / Mode Select -->
+<div id="modal-menu" class="modal-overlay open">
+  <div class="modal-card">
+    <div class="modal-title">JF LUDO KING</div>
+    <div class="status-notice">Select your battle mode and conquer the board!</div>
+
+    <div class="menu-options-list">
+      <button id="btn-mode-passplay" class="btn-primary">
+        <span>👥</span> Local Pass & Play
+      </button>
+      <button id="btn-mode-computer" class="btn-primary" style="background: linear-gradient(180deg, #32b55b 0%, #157936 100%);">
+        <span>🤖</span> Play vs Computer (AI)
+      </button>
+      <button id="btn-mode-online" class="btn-secondary">
+        <span>🌐</span> Online Multiplayer (Room Code)
+      </button>
+    </div>
+
+    <div style="margin-top: 6px;">
+      <div style="font-size: 13px; font-weight: 700; margin-bottom: 6px; text-align: center; color: #ffd700;">Number of Players:</div>
+      <div class="option-selector">
+        <button class="opt-btn" data-players="2">2 Players<br><small>(Blue vs Green)</small></button>
+        <button class="opt-btn" data-players="3">3 Players<br><small>(Blue, Red, Grn)</small></button>
+        <button class="opt-btn active" data-players="4">4 Players<br><small>(All Colors)</small></button>
+      </div>
+    </div>
+
+    <button id="btn-start-game" class="btn-primary" style="margin-top: 8px;">
+      START GAME
+    </button>
+  </div>
+</div>
+
+<!-- Modal: Online Multiplayer Room Setup -->
+<div id="modal-online" class="modal-overlay">
+  <div class="modal-card">
+    <button class="modal-close-btn" onclick="closeModal('modal-online')">&times;</button>
+    <div class="modal-title">Online Multiplayer</div>
+    <div class="status-notice">Create a private room to get a 6-digit code or enter a friend's code to join!</div>
+
+    <div class="menu-options-list">
+      <button id="btn-create-room" class="btn-primary">
+        <span>➕</span> Create New Room
+      </button>
+
+      <div style="text-align: center; font-weight: bold; color: #ffd700; font-size: 12px;">— OR JOIN EXISTING ROOM —</div>
+
+      <input type="text" id="join-room-input" class="text-input" placeholder="ENTER 6-DIGIT CODE" maxlength="6">
+
+      <button id="btn-join-room" class="btn-secondary">
+        <span>🚀</span> Join Room
+      </button>
+    </div>
+
+    <div id="room-active-section" style="display: none; flex-direction: column; gap: 10px;">
+      <div style="font-size: 13px; text-align: center; color: #ffd700;">YOUR 6-DIGIT ROOM CODE:</div>
+      <div class="room-code-tag" id="display-room-code">------</div>
+      <div class="status-notice" id="room-status-desc">Share code with friends. Waiting for players to join...</div>
+      <button id="btn-online-launch" class="btn-primary">Start Match Now</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Game Rules -->
+<div id="modal-rules" class="modal-overlay">
+  <div class="modal-card">
+    <button class="modal-close-btn" onclick="closeModal('modal-rules')">&times;</button>
+    <div class="modal-title">JF Ludo Rules</div>
+    <div style="font-size: 13px; line-height: 1.6; max-height: 280px; overflow-y: auto; padding-right: 6px; color: #e1e7f5;">
+      <p>🎲 <b>Unlocking Pawns:</b> You must roll a <b>6</b> to release a pawn from your home base onto the starting tile.</p>
+      <br>
+      <p>⭐ <b>Safe Tiles:</b> Star squares (⭐) and starting colored squares are <b>Safe Zones</b>. Pawns on safe tiles can never be captured!</p>
+      <br>
+      <p>⚔️ <b>Capturing (Katt):</b> Landing directly on an opponent's pawn on a non-safe tile captures it, sending it back to their home yard! You also receive <b>1 Bonus Turn</b>!</p>
+      <br>
+      <p>🎁 <b>Bonus Turns:</b> Rolling a 6, capturing an opponent, or entering the center home awards an immediate bonus roll.</p>
+      <br>
+      <p>🚫 <b>Three Consecutive Sixes:</b> Rolling three 6s in a row voids the turn and passes the dice to the next player!</p>
+      <br>
+      <p>🎯 <b>Exact Finishing Count:</b> Reaching the center requires an exact dice roll.</p>
+    </div>
+    <button class="btn-primary" onclick="closeModal('modal-rules')">Got it!</button>
+  </div>
+</div>
+
+<!-- Modal: Victory Celebration -->
+<div id="modal-victory" class="modal-overlay">
+  <div class="modal-card" style="text-align: center;">
+    <div style="font-size: 48px;">🏆</div>
+    <div class="modal-title" id="winner-title-text">BLUE WINS!</div>
+    <div class="status-notice" id="winner-subtitle-text">Master of the Ludo Board!</div>
+    <button id="btn-play-again" class="btn-primary" style="margin-top: 10px;">Play Again</button>
+  </div>
+</div>
+
+<!-- Toast Box -->
+<div id="toast-msg">Notification</div>
+
+<!-- Confetti Canvas -->
+<canvas id="confetti-canvas"></canvas>
+
+<script>
+/* ==========================================================================
+   JF LUDO - FULL ENGINE
+   Includes: Web Audio FX, Responsive Canvas 15x15 Ludo Board, 3D Pawns,
+   Complete Ludo King Rules, AI Computer Bot, Local & Online Firebase Sync
+   ========================================================================== */
+
+// --- AUDIO SYNTHESIS ENGINE (Zero external dependencies) ---
+class SoundEngine {
+  constructor() {
+    this.ctx = null;
+    this.enabled = true;
+  }
+
+  init() {
+    if (!this.ctx) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (AudioContext) {
+        this.ctx = new AudioContext();
+      }
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
+  playDiceRoll() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    for (let i = 0; i < 6; i++) {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(120 + Math.random() * 260, now + i * 0.08);
+      gain.gain.setValueAtTime(0.2, now + i * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.06);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + i * 0.08);
+      osc.stop(now + i * 0.08 + 0.06);
+    }
+  }
+
+  playStep() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, now);
+    osc.frequency.exponentialRampToValueAtTime(220, now + 0.08);
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.08);
+  }
+
+  playCapture() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(600, now);
+    osc.frequency.exponentialRampToValueAtTime(100, now + 0.35);
+    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.35);
+  }
+
+  playSix() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    [523.25, 659.25, 783.99].forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.09);
+      gain.gain.setValueAtTime(0.25, now + idx * 0.09);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.09 + 0.2);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + idx * 0.09);
+      osc.stop(now + idx * 0.09 + 0.2);
+    });
+  }
+
+  playWin() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const notes = [440, 554, 659, 880];
+    notes.forEach((freq, i) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now + i * 0.15);
+      gain.gain.setValueAtTime(0.3, now + i * 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.15 + 0.4);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + i * 0.15);
+      osc.stop(now + i * 0.15 + 0.4);
+    });
+  }
+}
+
+const sounds = new SoundEngine();
+
+// --- LUDO CONSTANTS & GEOMETRY (15x15 Grid) ---
+const GRID_SIZE = 15;
+const PLAYERS = ['blue', 'red', 'green', 'yellow'];
+
+const PLAYER_COLORS = {
+  blue: { hex: '#1976d2', dark: '#0d47a1', light: '#42a5f5', name: 'Blue', yard: 'BL' },
+  red: { hex: '#e53935', dark: '#b71c1c', light: '#ef5350', name: 'Red', yard: 'TL' },
+  green: { hex: '#2e7d32', dark: '#1b5e20', light: '#4caf50', name: 'Green', yard: 'TR' },
+  yellow: { hex: '#fbc02d', dark: '#f57f17', light: '#ffee58', name: 'Yellow', yard: 'BR' }
+};
+
+// 52 Perimeter track coordinates: [col, row] clockwise starting from Red starting tile (1, 6)
+const TRACK_COORDS = [
+  /* 0 - Red start */ [1, 6], [2, 6], [3, 6], [4, 6], [5, 6],
+  /* 5 */ [6, 5], [6, 4], [6, 3], [6, 2], [6, 1], [6, 0],
+  /* 11 */ [7, 0],
+  /* 12 */ [8, 0],
+  /* 13 - Green start */ [8, 1], [8, 2], [8, 3], [8, 4], [8, 5],
+  /* 18 */ [9, 6], [10, 6], [11, 6], [12, 6], [13, 6], [14, 6],
+  /* 24 */ [14, 7],
+  /* 25 */ [14, 8],
+  /* 26 - Yellow start */ [13, 8], [12, 8], [11, 8], [10, 8], [9, 8],
+  /* 31 */ [8, 9], [8, 10], [8, 11], [8, 12], [8, 13], [8, 14],
+  /* 37 */ [7, 14],
+  /* 38 */ [6, 14],
+  /* 39 - Blue start */ [6, 13], [6, 12], [6, 11], [6, 10], [6, 9],
+  /* 44 */ [5, 8], [4, 8], [3, 8], [2, 8], [1, 8], [0, 8],
+  /* 50 */ [0, 7],
+  /* 51 */ [0, 6]
+];
+
+// Safe Star Indices on outer track
+const SAFE_STAR_INDICES = [0, 8, 13, 21, 26, 34, 39, 47];
+
+// Player configuration: starting outer track index & 5 home run column cells
+const PLAYER_TRACK_DATA = {
+  red: {
+    startIndex: 0,
+    homeRunEntranceIndex: 50, // After tile 50 enters Red's home row
+    homeRun: [[1, 7], [2, 7], [3, 7], [4, 7], [5, 7]],
+    centerCoord: [6.5, 7.5]
+  },
+  green: {
+    startIndex: 13,
+    homeRunEntranceIndex: 11, // After tile 11 enters Green's home column
+    homeRun: [[7, 1], [7, 2], [7, 3], [7, 4], [7, 5]],
+    centerCoord: [7.5, 6.5]
+  },
+  yellow: {
+    startIndex: 26,
+    homeRunEntranceIndex: 24, // After tile 24 enters Yellow's home row
+    homeRun: [[13, 7], [12, 7], [11, 7], [10, 7], [9, 7]],
+    centerCoord: [8.5, 7.5]
+  },
+  blue: {
+    startIndex: 39,
+    homeRunEntranceIndex: 37, // After tile 37 enters Blue's home column
+    homeRun: [[7, 13], [7, 12], [7, 11], [7, 10], [7, 9]],
+    centerCoord: [7.5, 8.5]
+  }
+};
+
+// Home Base Socket coordinates for 4 pawns inside each 6x6 yard
+const BASE_SOCKETS = {
+  red: [ [1.5, 1.5], [3.5, 1.5], [1.5, 3.5], [3.5, 3.5] ],
+  green: [ [10.5, 1.5], [12.5, 1.5], [10.5, 3.5], [12.5, 3.5] ],
+  yellow: [ [10.5, 10.5], [12.5, 10.5], [10.5, 12.5], [12.5, 12.5] ],
+  blue: [ [1.5, 10.5], [3.5, 10.5], [1.5, 12.5], [3.5, 12.5] ]
+};
+
+// --- GAME STATE ---
+class LudoGame {
+  constructor() {
+    this.canvas = document.getElementById('ludo-canvas');
+    this.ctx = this.canvas.getContext('2d');
+    this.cellSize = 32;
+
+    this.playerCount = 4;
+    this.activePlayers = ['blue', 'red', 'green', 'yellow'];
+    this.gameMode = 'passplay'; // 'passplay', 'computer', 'online'
+    this.playerTypes = {
+      blue: 'human',
+      red: 'human',
+      green: 'human',
+      yellow: 'human'
+    };
+
+    // Pawns: { player, id, state: 'base'|'track'|'homerun'|'home', stepCount: 0..57 }
+    // stepCount: -1 = in base
+    // 0..50 = on outer track relative to start
+    // 51..55 = in home run column
+    // 56 = in center home (Finished!)
+    this.pawns = [];
+    this.currentTurnIndex = 0;
+    this.currentDice = null;
+    this.diceState = 'waiting_roll'; // 'waiting_roll', 'rolling', 'waiting_move', 'animating'
+    this.consecutiveSixes = 0;
+    this.winner = null;
+
+    // Movement animation state
+    this.animatingPawn = null;
+    this.animSteps = [];
+    this.animStepProgress = 0;
+
+    // Online Multiplayer
+    this.onlineRoomId = null;
+    this.isHost = false;
+    this.myOnlinePlayer = 'blue';
+    this.broadcastChannel = null;
+
+    this.setupListeners();
+    this.resizeCanvas();
+    this.initGame();
+    this.startRenderLoop();
+  }
+
+  initGame() {
+    // Determine active players based on count
+    if (this.playerCount === 2) {
+      this.activePlayers = ['blue', 'green'];
+    } else if (this.playerCount === 3) {
+      this.activePlayers = ['blue', 'red', 'green'];
+    } else {
+      this.activePlayers = ['blue', 'red', 'green', 'yellow'];
+    }
+
+    // Set player types
+    this.activePlayers.forEach(p => {
+      if (this.gameMode === 'computer') {
+        this.playerTypes[p] = (p === 'blue') ? 'human' : 'bot';
+      } else if (this.gameMode === 'online') {
+        this.playerTypes[p] = (p === this.myOnlinePlayer) ? 'human' : 'remote';
+      } else {
+        this.playerTypes[p] = 'human';
+      }
+    });
+
+    // Initialize pawns
+    this.pawns = [];
+    this.activePlayers.forEach(color => {
+      for (let i = 0; i < 4; i++) {
+        this.pawns.push({
+          player: color,
+          id: i,
+          stepCount: -1 // -1 means home base yard
+        });
+      }
+    });
+
+    this.currentTurnIndex = 0;
+    this.currentDice = 1;
+    this.diceState = 'waiting_roll';
+    this.consecutiveSixes = 0;
+    this.winner = null;
+    this.animatingPawn = null;
+
+    this.updateHUD();
+    this.showDiceFace(this.currentDice);
+
+    // If current player is bot, trigger bot
+    this.checkBotTurn();
+  }
+
+  getCurrentPlayer() {
+    return this.activePlayers[this.currentTurnIndex];
+  }
+
+  // --- DICE ROLL LOGIC ---
+  rollDice() {
+    if (this.diceState !== 'waiting_roll') return;
+    const player = this.getCurrentPlayer();
+    if (this.playerTypes[player] !== 'human' && this.gameMode !== 'passplay') return;
+
+    this.executeDiceRoll();
+  }
+
+  executeDiceRoll(forcedRoll = null) {
+    this.diceState = 'rolling';
+    sounds.playDiceRoll();
+
+    const diceBox = document.getElementById('main-dice');
+    diceBox.classList.add('rolling');
+
+    const rollValue = forcedRoll !== null ? forcedRoll : (Math.floor(Math.random() * 6) + 1);
+
+    // Quick rolling visual effect
+    let counter = 0;
+    const interval = setInterval(() => {
+      this.showDiceFace((counter % 6) + 1);
+      counter++;
+    }, 70);
+
+    setTimeout(() => {
+      clearInterval(interval);
+      diceBox.classList.remove('rolling');
+      this.currentDice = rollValue;
+      this.showDiceFace(rollValue);
+
+      if (rollValue === 6) {
+        this.consecutiveSixes++;
+        sounds.playSix();
+      } else {
+        this.consecutiveSixes = 0;
+      }
+
+      // Check 3 consecutive 6s limit rule
+      if (this.consecutiveSixes === 3) {
+        showToast('Three 6s in a row! Turn cancelled.');
+        this.consecutiveSixes = 0;
+        this.passTurn();
+        return;
+      }
+
+      this.processRoll(rollValue);
+      this.syncOnlineState();
+    }, 600);
+  }
+
+  processRoll(roll) {
+    const player = this.getCurrentPlayer();
+    const movablePawns = this.getMovablePawns(player, roll);
+
+    if (movablePawns.length === 0) {
+      showToast(`${PLAYER_COLORS[player].name} rolled ${roll} - No moves!`);
+      document.getElementById('dice-help-text').innerText = 'NO MOVES';
+      setTimeout(() => {
+        this.passTurn();
+      }, 900);
+    } else if (movablePawns.length === 1 && this.playerTypes[player] === 'human') {
+      // Auto move single eligible pawn for streamlined mobile UX
+      this.diceState = 'waiting_move';
+      document.getElementById('dice-help-text').innerText = 'MOVING...';
+      setTimeout(() => {
+        this.movePawn(movablePawns[0], roll);
+      }, 400);
+    } else {
+      this.diceState = 'waiting_move';
+      document.getElementById('dice-help-text').innerText = 'SELECT PAWN';
+      if (this.playerTypes[player] === 'bot') {
+        setTimeout(() => this.botChoosePawn(movablePawns, roll), 700);
+      }
+    }
+  }
+
+  getMovablePawns(player, roll) {
+    return this.pawns.filter(p => {
+      if (p.player !== player) return false;
+      // In base: needs a 6 to enter
+      if (p.stepCount === -1) {
+        return roll === 6;
+      }
+      // Reached center home: cannot move anymore
+      if (p.stepCount === 56) return false;
+      // Exact roll required to reach 56
+      if (p.stepCount + roll > 56) return false;
+      return true;
+    });
+  }
+
+  // --- PAWN MOVEMENT & RULES ---
+  movePawn(pawn, roll) {
+    if (this.diceState !== 'waiting_move') return;
+    this.diceState = 'animating';
+    document.getElementById('dice-help-text').innerText = '...';
+
+    const startStep = pawn.stepCount;
+    let targetStep;
+
+    if (startStep === -1) {
+      // Leaving base on a 6: moves to tile 0
+      targetStep = 0;
+    } else {
+      targetStep = startStep + roll;
+    }
+
+    // Generate step-by-step jump coordinates
+    const steps = [];
+    if (startStep === -1) {
+      steps.push(this.getPawnGridPosition(pawn.player, 0));
+    } else {
+      for (let s = startStep + 1; s <= targetStep; s++) {
+        steps.push(this.getPawnGridPosition(pawn.player, s));
+      }
+    }
+
+    this.animatingPawn = pawn;
+    this.animSteps = steps;
+    this.animStepIndex = 0;
+
+    this.runPawnStepAnimation(targetStep, roll);
+  }
+
+  runPawnStepAnimation(targetStep, roll) {
+    if (this.animStepIndex < this.animSteps.length) {
+      sounds.playStep();
+      this.animStepIndex++;
+      setTimeout(() => {
+        this.runPawnStepAnimation(targetStep, roll);
+      }, 160);
+    } else {
+      // Animation finished: commit position
+      this.animatingPawn.stepCount = targetStep;
+      this.animatingPawn = null;
+      this.animSteps = [];
+
+      this.evaluateTurnResult(roll);
+    }
+  }
+
+  evaluateTurnResult(roll) {
+    const player = this.getCurrentPlayer();
+    let getsBonusTurn = false;
+
+    // Check if rolled 6
+    if (roll === 6) {
+      getsBonusTurn = true;
+      showToast(`${PLAYER_COLORS[player].name} rolled 6! Extra Turn!`);
+    }
+
+    // Check captures (Katt) on outer track
+    const activePawnsOnTrack = this.pawns.filter(p => p.stepCount >= 0 && p.stepCount <= 50);
+    // Find the pawn that just moved
+    const movedPawn = this.pawns.find(p => p.player === player && p === this.animatingPawnLastMoved);
+    // Get absolute track tile of moved pawn
+    if (this.lastMovedPawn && this.lastMovedPawn.stepCount >= 0 && this.lastMovedPawn.stepCount <= 50) {
+      const tileIndex = this.getGlobalTrackIndex(this.lastMovedPawn.player, this.lastMovedPawn.stepCount);
+      // Check if tile is a safe zone
+      const isSafe = SAFE_STAR_INDICES.includes(tileIndex);
+
+      if (!isSafe) {
+        // Find any opponent pawns on the same tile
+        const opponents = this.pawns.filter(p => 
+          p.player !== player && 
+          p.stepCount >= 0 && 
+          p.stepCount <= 50 &&
+          this.getGlobalTrackIndex(p.player, p.stepCount) === tileIndex
+        );
+
+        if (opponents.length > 0) {
+          // Katt! Send all opponents on this tile back to yard!
+          opponents.forEach(opp => {
+            opp.stepCount = -1;
+          });
+          sounds.playCapture();
+          showToast(`Katt! ${PLAYER_COLORS[player].name} captured opponent! Bonus Turn!`);
+          getsBonusTurn = true;
+        }
+      }
+    }
+
+    // Check if pawn reached center home (step 56)
+    if (this.lastMovedPawn && this.lastMovedPawn.stepCount === 56) {
+      showToast(`${PLAYER_COLORS[player].name} reached Home! Bonus Turn!`);
+      sounds.playSix();
+      getsBonusTurn = true;
+    }
+
+    // Check Win Condition: all 4 pawns of player are home (step 56)
+    const playerPawnsHome = this.pawns.filter(p => p.player === player && p.stepCount === 56).length;
+    if (playerPawnsHome === 4) {
+      this.handlePlayerWin(player);
+      return;
+    }
+
+    this.syncOnlineState();
+
+    if (getsBonusTurn) {
+      this.diceState = 'waiting_roll';
+      this.updateHUD();
+      this.checkBotTurn();
+    } else {
+      this.passTurn();
+    }
+  }
+
+  passTurn() {
+    this.consecutiveSixes = 0;
+    this.currentTurnIndex = (this.currentTurnIndex + 1) % this.activePlayers.length;
+    this.diceState = 'waiting_roll';
+    this.updateHUD();
+    this.syncOnlineState();
+    this.checkBotTurn();
+  }
+
+  checkBotTurn() {
+    const player = this.getCurrentPlayer();
+    if (this.playerTypes[player] === 'bot' && !this.winner) {
+      document.getElementById('dice-help-text').innerText = 'BOT THINKING...';
+      setTimeout(() => {
+        if (this.diceState === 'waiting_roll') {
+          this.executeDiceRoll();
+        }
+      }, 900);
+    }
+  }
+
+  botChoosePawn(movablePawns, roll) {
+    const player = this.getCurrentPlayer();
+    // Smart heuristic:
+    // 1. Capture opponent pawn if possible
+    for (let p of movablePawns) {
+      const nextStep = (p.stepCount === -1) ? 0 : p.stepCount + roll;
+      if (nextStep >= 0 && nextStep <= 50) {
+        const nextTile = this.getGlobalTrackIndex(player, nextStep);
+        if (!SAFE_STAR_INDICES.includes(nextTile)) {
+          const wouldCapture = this.pawns.some(opp => 
+            opp.player !== player && 
+            opp.stepCount >= 0 && 
+            opp.stepCount <= 50 &&
+            this.getGlobalTrackIndex(opp.player, opp.stepCount) === nextTile
+          );
+          if (wouldCapture) {
+            this.lastMovedPawn = p;
+            this.movePawn(p, roll);
+            return;
+          }
+        }
+      }
+    }
+
+    // 2. Reach home triangle
+    for (let p of movablePawns) {
+      if (p.stepCount + roll === 56) {
+        this.lastMovedPawn = p;
+        this.movePawn(p, roll);
+        return;
+      }
+    }
+
+    // 3. Unlock from home base if roll is 6
+    if (roll === 6) {
+      const basePawn = movablePawns.find(p => p.stepCount === -1);
+      if (basePawn) {
+        this.lastMovedPawn = basePawn;
+        this.movePawn(basePawn, roll);
+        return;
+      }
+    }
+
+    // 4. Move farthest pawn
+    movablePawns.sort((a, b) => b.stepCount - a.stepCount);
+    const chosen = movablePawns[0];
+    this.lastMovedPawn = chosen;
+    this.movePawn(chosen, roll);
+  }
+
+  handlePlayerWin(player) {
+    this.winner = player;
+    sounds.playWin();
+    startConfetti();
+    document.getElementById('winner-title-text').innerText = `${PLAYER_COLORS[player].name.toUpperCase()} WINS!`;
+    document.getElementById('winner-subtitle-text').innerText = `Congratulations! You conquered the board!`;
+    openModal('modal-victory');
+  }
+
+  // --- COORDINATE UTILITIES ---
+  getGlobalTrackIndex(player, relativeStep) {
+    const start = PLAYER_TRACK_DATA[player].startIndex;
+    return (start + relativeStep) % 52;
+  }
+
+  getPawnGridPosition(player, step) {
+    if (step === -1) return null; // Base
+    if (step <= 50) {
+      const gIndex = this.getGlobalTrackIndex(player, step);
+      return TRACK_COORDS[gIndex];
+    }
+    if (step <= 55) {
+      const homeRunIndex = step - 51;
+      return PLAYER_TRACK_DATA[player].homeRun[homeRunIndex];
+    }
+    // Center home
+    return PLAYER_TRACK_DATA[player].centerCoord;
+  }
+
+  // --- RENDERING PIPELINE ---
+  resizeCanvas() {
+    const stage = document.getElementById('game-stage');
+    const availableWidth = Math.min(stage.clientWidth - 16, 500);
+    const availableHeight = Math.min(stage.clientHeight - 40, 500);
+    const size = Math.floor(Math.min(availableWidth, availableHeight));
+
+    const dpr = window.devicePixelRatio || 1;
+    this.canvas.width = size * dpr;
+    this.canvas.height = size * dpr;
+    this.canvas.style.width = size + 'px';
+    this.canvas.style.height = size + 'px';
+
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0); // reset
+    this.ctx.scale(dpr, dpr);
+
+    this.displaySize = size;
+    this.cellSize = size / GRID_SIZE;
+  }
+
+  startRenderLoop() {
+    const render = () => {
+      this.drawBoard();
+      requestAnimationFrame(render);
+    };
+    requestAnimationFrame(render);
+  }
+
+  drawBoard() {
+    const ctx = this.ctx;
+    const s = this.cellSize;
+    const size = this.displaySize;
+
+    ctx.clearRect(0, 0, size, size);
+
+    // Board background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, size, size);
+
+    // 1. Draw 4 Home Yards (Bases): 6x6 cells
+    this.drawYard(0, 0, 6, 6, PLAYER_COLORS.red);
+    this.drawYard(9, 0, 6, 6, PLAYER_COLORS.green);
+    this.drawYard(9, 9, 6, 6, PLAYER_COLORS.yellow);
+    this.drawYard(0, 9, 6, 6, PLAYER_COLORS.blue);
+
+    // 2. Draw Track Grid lines (cols 6..8, rows 0..5 and 9..14; rows 6..8, cols 0..5 and 9..14)
+    this.drawTrackGrid();
+
+    // 3. Draw Home Paths & Safe Starting Tiles
+    this.drawHomePaths();
+
+    // 4. Draw Center Home Triangles (cells 6,6 to 8,8)
+    this.drawCenterTriangle();
+
+    // 5. Draw Safe Stars (⭐)
+    this.drawSafeStars();
+
+    // 6. Draw Pawns (both in bases and on board)
+    this.drawPawns();
+  }
+
+  drawYard(gx, gy, gw, gh, colorData) {
+    const ctx = this.ctx;
+    const s = this.cellSize;
+    const x = gx * s;
+    const y = gy * s;
+    const w = gw * s;
+    const h = gh * s;
+
+    // Outer color block
+    ctx.fillStyle = colorData.hex;
+    ctx.fillRect(x, y, w, h);
+
+    // Subtle 3D inner border
+    ctx.strokeStyle = colorData.dark;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+
+    // White rounded inner yard box
+    const margin = s * 0.8;
+    const ix = x + margin;
+    const iy = y + margin;
+    const iw = w - margin * 2;
+    const ih = h - margin * 2;
+    const rad = 14;
+
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.roundRect(ix, iy, iw, ih, rad);
+    ctx.fill();
+    ctx.restore();
+
+    // 4 Colored circular sockets
+    const socketPositions = [
+      { x: ix + iw * 0.28, y: iy + ih * 0.28 },
+      { x: ix + iw * 0.72, y: iy + ih * 0.28 },
+      { x: ix + iw * 0.28, y: iy + ih * 0.72 },
+      { x: ix + iw * 0.72, y: iy + ih * 0.72 }
+    ];
+
+    socketPositions.forEach(pos => {
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, s * 0.5, 0, Math.PI * 2);
+      ctx.fillStyle = colorData.hex;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Inner white dot
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, s * 0.2, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+    });
+  }
+
+  drawTrackGrid() {
+    const ctx = this.ctx;
+    const s = this.cellSize;
+    ctx.strokeStyle = '#d0d7de';
+    ctx.lineWidth = 1;
+
+    // Draw all cells in the 3-wide cross
+    for (let c = 0; c < 15; c++) {
+      for (let r = 0; r < 15; r++) {
+        // Skip yard bases and center square
+        const inRedYard = c < 6 && r < 6;
+        const inGreenYard = c > 8 && r < 6;
+        const inYellowYard = c > 8 && r > 8;
+        const inBlueYard = c < 6 && r > 8;
+        const inCenter = c >= 6 && c <= 8 && r >= 6 && r <= 8;
+
+        if (!inRedYard && !inGreenYard && !inYellowYard && !inBlueYard && !inCenter) {
+          ctx.strokeRect(c * s, r * s, s, s);
+        }
+      }
+    }
+  }
+
+  drawHomePaths() {
+    const ctx = this.ctx;
+    const s = this.cellSize;
+
+    // Red: start (1,6) and home row (1..5, 7)
+    ctx.fillStyle = PLAYER_COLORS.red.hex;
+    ctx.fillRect(1 * s, 6 * s, s, s);
+    for (let c = 1; c <= 5; c++) {
+      ctx.fillRect(c * s, 7 * s, s, s);
+      ctx.strokeStyle = PLAYER_COLORS.red.dark;
+      ctx.strokeRect(c * s, 7 * s, s, s);
+    }
+
+    // Green: start (8,1) and home col (7, 1..5)
+    ctx.fillStyle = PLAYER_COLORS.green.hex;
+    ctx.fillRect(8 * s, 1 * s, s, s);
+    for (let r = 1; r <= 5; r++) {
+      ctx.fillRect(7 * s, r * s, s, s);
+      ctx.strokeStyle = PLAYER_COLORS.green.dark;
+      ctx.strokeRect(7 * s, r * s, s, s);
+    }
+
+    // Yellow: start (13,8) and home row (9..13, 7)
+    ctx.fillStyle = PLAYER_COLORS.yellow.hex;
+    ctx.fillRect(13 * s, 8 * s, s, s);
+    for (let c = 9; c <= 13; c++) {
+      ctx.fillRect(c * s, 7 * s, s, s);
+      ctx.strokeStyle = PLAYER_COLORS.yellow.dark;
+      ctx.strokeRect(c * s, 7 * s, s, s);
+    }
+
+    // Blue: start (6,13) and home col (7, 9..13)
+    ctx.fillStyle = PLAYER_COLORS.blue.hex;
+    ctx.fillRect(6 * s, 13 * s, s, s);
+    for (let r = 9; r <= 13; r++) {
+      ctx.fillRect(7 * s, r * s, s, s);
+      ctx.strokeStyle = PLAYER_COLORS.blue.dark;
+      ctx.strokeRect(7 * s, r * s, s, s);
+    }
+
+    // Starting arrows on starts
+    this.drawStartArrow(1, 6, 'right', PLAYER_COLORS.red);
+    this.drawStartArrow(8, 1, 'down', PLAYER_COLORS.green);
+    this.drawStartArrow(13, 8, 'left', PLAYER_COLORS.yellow);
+    this.drawStartArrow(6, 13, 'up', PLAYER_COLORS.blue);
+  }
+
+  drawStartArrow(c, r, dir, color) {
+    const ctx = this.ctx;
+    const s = this.cellSize;
+    const cx = (c + 0.5) * s;
+    const cy = (r + 0.5) * s;
+    const rad = s * 0.35;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    if (dir === 'down') ctx.rotate(Math.PI / 2);
+    if (dir === 'left') ctx.rotate(Math.PI);
+    if (dir === 'up') ctx.rotate(-Math.PI / 2);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(rad * 0.8, 0);
+    ctx.lineTo(-rad * 0.5, -rad * 0.6);
+    ctx.lineTo(-rad * 0.5, rad * 0.6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  drawCenterTriangle() {
+    const ctx = this.ctx;
+    const s = this.cellSize;
+    const x0 = 6 * s;
+    const y0 = 6 * s;
+    const x1 = 9 * s;
+    const y1 = 9 * s;
+    const cx = 7.5 * s;
+    const cy = 7.5 * s;
+
+    // Center background
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(x0, y0, 3 * s, 3 * s);
+
+    // Left triangle: Red
+    ctx.fillStyle = PLAYER_COLORS.red.hex;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(cx, cy);
+    ctx.lineTo(x0, y1);
+    ctx.closePath();
+    ctx.fill();
+
+    // Top triangle: Green
+    ctx.fillStyle = PLAYER_COLORS.green.hex;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(cx, cy);
+    ctx.lineTo(x1, y0);
+    ctx.closePath();
+    ctx.fill();
+
+    // Right triangle: Yellow
+    ctx.fillStyle = PLAYER_COLORS.yellow.hex;
+    ctx.beginPath();
+    ctx.moveTo(x1, y0);
+    ctx.lineTo(cx, cy);
+    ctx.lineTo(x1, y1);
+    ctx.closePath();
+    ctx.fill();
+
+    // Bottom triangle: Blue
+    ctx.fillStyle = PLAYER_COLORS.blue.hex;
+    ctx.beginPath();
+    ctx.moveTo(x0, y1);
+    ctx.lineTo(cx, cy);
+    ctx.lineTo(x1, y1);
+    ctx.closePath();
+    ctx.fill();
+
+    // Diagonal dividers
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.moveTo(x0, y1);
+    ctx.lineTo(x1, y0);
+    ctx.stroke();
+
+    // Center Gold Crown Emblem
+    ctx.beginPath();
+    ctx.arc(cx, cy, s * 0.55, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffd700';
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 6;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.font = `${Math.floor(s * 0.6)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#000';
+    ctx.fillText('👑', cx, cy + 1);
+  }
+
+  drawSafeStars() {
+    const ctx = this.ctx;
+    const s = this.cellSize;
+
+    // 4 Star locations on track (in addition to 4 starting tiles)
+    const starCoords = [
+      [6, 2],
+      [12, 6],
+      [8, 12],
+      [2, 8]
+    ];
+
+    starCoords.forEach(([c, r]) => {
+      const cx = (c + 0.5) * s;
+      const cy = (r + 0.5) * s;
+      ctx.font = `${Math.floor(s * 0.65)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('⭐', cx, cy);
+    });
+  }
+
+  // Draw 3D pin-shaped pawns with dynamic scaling & stacking
+  drawPawns() {
+    const s = this.cellSize;
+    const ctx = this.ctx;
+
+    // Group pawns by position on board to handle stacking
+    const cellGroups = {};
+
+    this.pawns.forEach(pawn => {
+      let key;
+      let center;
+
+      if (pawn.stepCount === -1) {
+        // In base socket
+        key = `base_${pawn.player}_${pawn.id}`;
+        const socket = BASE_SOCKETS[pawn.player][pawn.id];
+        center = { x: socket[0] * s, y: socket[1] * s };
+      } else {
+        const gridPos = this.getPawnGridPosition(pawn.player, pawn.stepCount);
+        key = `${gridPos[0]}_${gridPos[1]}`;
+        center = { x: (gridPos[0] + 0.5) * s, y: (gridPos[1] + 0.5) * s };
+      }
+
+      if (!cellGroups[key]) {
+        cellGroups[key] = { center, pawns: [] };
+      }
+      cellGroups[key].pawns.push(pawn);
+    });
+
+    const activePlayer = this.getCurrentPlayer();
+    const canMovePawn = (p) => {
+      if (this.diceState !== 'waiting_move') return false;
+      if (p.player !== activePlayer) return false;
+      if (this.playerTypes[activePlayer] !== 'human' && this.gameMode !== 'passplay') return false;
+      const eligible = this.getMovablePawns(activePlayer, this.currentDice);
+      return eligible.includes(p);
+    };
+
+    // Render each group
+    Object.values(cellGroups).forEach(group => {
+      const count = group.pawns.length;
+      group.pawns.forEach((pawn, idx) => {
+        // Calculate offset if multiple pawns share the cell
+        let px = group.center.x;
+        let py = group.center.y;
+        let scale = 1.0;
+
+        if (count === 2) {
+          scale = 0.8;
+          px += (idx === 0 ? -s * 0.18 : s * 0.18);
+        } else if (count >= 3) {
+          scale = 0.68;
+          const offsets = [
+            [-s * 0.18, -s * 0.18],
+            [s * 0.18, -s * 0.18],
+            [-s * 0.18, s * 0.18],
+            [s * 0.18, s * 0.18]
+          ];
+          const off = offsets[idx % 4];
+          px += off[0];
+          py += off[1];
+        }
+
+        const isSelectable = canMovePawn(pawn);
+        this.renderSinglePawn(px, py, pawn.player, scale, isSelectable);
+
+        // Store rendered screen bounding box for touch picking
+        pawn.renderX = px;
+        pawn.renderY = py;
+        pawn.renderRadius = (s * 0.42) * scale;
+      });
+    });
+  }
+
+  renderSinglePawn(x, y, colorKey, scale, isSelectable) {
+    const ctx = this.ctx;
+    const s = this.cellSize * scale;
+    const color = PLAYER_COLORS[colorKey];
+
+    ctx.save();
+    ctx.translate(x, y);
+
+    // Pulsing selection aura if pawn is movable
+    if (isSelectable) {
+      const pulse = (Math.sin(Date.now() / 140) + 1) / 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 0.6 + pulse * 4, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 215, 0, ${0.35 + pulse * 0.4})`;
+      ctx.fill();
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      // Subtle vertical bobbing
+      ctx.translate(0, -pulse * 4);
+    }
+
+    // 3D Drop shadow
+    ctx.beginPath();
+    ctx.ellipse(0, s * 0.35, s * 0.38, s * 0.16, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.fill();
+
+    // Pin-shaped location token geometry:
+    // Head radius
+    const headR = s * 0.34;
+    const tipY = s * 0.32;
+
+    // Pin Body Outer Gradient
+    ctx.beginPath();
+    ctx.arc(0, -s * 0.1, headR, Math.PI * 0.8, Math.PI * 0.2, false);
+    ctx.lineTo(0, tipY);
+    ctx.closePath();
+
+    const bodyGrad = ctx.createLinearGradient(-headR, -headR, headR, tipY);
+    bodyGrad.addColorStop(0, '#ffffff');
+    bodyGrad.addColorStop(0.2, color.light);
+    bodyGrad.addColorStop(0.7, color.hex);
+    bodyGrad.addColorStop(1, color.dark);
+
+    ctx.fillStyle = bodyGrad;
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.8 * scale;
+    ctx.stroke();
+
+    // Center Gem / Pearl
+    ctx.beginPath();
+    ctx.arc(0, -s * 0.1, headR * 0.52, 0, Math.PI * 2);
+    const gemGrad = ctx.createRadialGradient(-headR * 0.15, -s * 0.22, 1, 0, -s * 0.1, headR * 0.52);
+    gemGrad.addColorStop(0, '#ffffff');
+    gemGrad.addColorStop(0.3, color.light);
+    gemGrad.addColorStop(1, color.dark);
+    ctx.fillStyle = gemGrad;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Specular shine dot
+    ctx.beginPath();
+    ctx.arc(-headR * 0.2, -s * 0.2, headR * 0.14, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // --- DICE FACE VISUALS (1 to 6) ---
+  showDiceFace(val) {
+    const allDots = ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9'];
+    allDots.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('show');
+    });
+
+    const activeMap = {
+      1: ['d5'],
+      2: ['d1', 'd9'],
+      3: ['d1', 'd5', 'd9'],
+      4: ['d1', 'd3', 'd7', 'd9'],
+      5: ['d1', 'd3', 'd5', 'd7', 'd9'],
+      6: ['d1', 'd3', 'd4', 'd6', 'd7', 'd9']
+    };
+
+    const dotsToShow = activeMap[val] || ['d5'];
+    dotsToShow.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('show');
+    });
+  }
+
+  // --- HUD STATE UPDATES ---
+  updateHUD() {
+    const active = this.getCurrentPlayer();
+    const activeColor = PLAYER_COLORS[active];
+
+    // Update Turn Banner
+    const turnDot = document.getElementById('turn-color-indicator');
+    const turnLabel = document.getElementById('turn-text-label');
+    turnDot.style.background = activeColor.hex;
+    turnDot.style.color = activeColor.hex;
+
+    const isHuman = (this.playerTypes[active] === 'human' || this.gameMode === 'passplay');
+    const typeTag = isHuman ? '' : ' (Bot)';
+    turnLabel.innerText = `${activeColor.name}'s Turn${typeTag}`;
+
+    // Update Player Badges
+    PLAYERS.forEach(color => {
+      const badge = document.getElementById(`badge-${color}`);
+      const stat = document.getElementById(`stat-${color}`);
+      if (!this.activePlayers.includes(color)) {
+        badge.style.display = 'none';
+        return;
+      }
+      badge.style.display = 'flex';
+
+      if (color === active) {
+        badge.classList.add('active');
+        stat.innerText = 'Rolling...';
+        stat.style.color = '#ffd700';
+      } else {
+        badge.classList.remove('active');
+        const homeCount = this.pawns.filter(p => p.player === color && p.stepCount === 56).length;
+        stat.innerText = homeCount > 0 ? `${homeCount} Home` : 'Waiting';
+        stat.style.color = '#90caf9';
+      }
+    });
+
+    // Dice Glow & Help
+    const diceBox = document.getElementById('main-dice');
+    const diceGlow = document.getElementById('dice-glow');
+    if (this.diceState === 'waiting_roll' && isHuman) {
+      diceBox.classList.remove('disabled');
+      diceGlow.style.display = 'block';
+      document.getElementById('dice-help-text').innerText = 'TAP DICE';
+    } else {
+      diceGlow.style.display = 'none';
+      if (!isHuman) {
+        diceBox.classList.add('disabled');
+      }
+    }
+  }
+
+  // --- TOUCH & CLICK INTERACTION ---
+  setupListeners() {
+    window.addEventListener('resize', () => this.resizeCanvas());
+
+    // Dice tap
+    document.getElementById('main-dice').addEventListener('click', () => {
+      this.rollDice();
+    });
+
+    // Canvas click: select pawn to move
+    this.canvas.addEventListener('pointerdown', (e) => {
+      if (this.diceState !== 'waiting_move') return;
+      const rect = this.canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      const active = this.getCurrentPlayer();
+      if (this.playerTypes[active] !== 'human' && this.gameMode !== 'passplay') return;
+
+      const eligible = this.getMovablePawns(active, this.currentDice);
+
+      // Find clicked pawn
+      let pickedPawn = null;
+      let minDistance = 999999;
+
+      eligible.forEach(pawn => {
+        if (pawn.renderX !== undefined && pawn.renderY !== undefined) {
+          const dx = clickX - pawn.renderX;
+          const dy = clickY - pawn.renderY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist <= pawn.renderRadius * 1.5 && dist < minDistance) {
+            minDistance = dist;
+            pickedPawn = pawn;
+          }
+        }
+      });
+
+      if (pickedPawn) {
+        this.lastMovedPawn = pickedPawn;
+        this.movePawn(pickedPawn, this.currentDice);
+      }
+    });
+
+    // Sound toggle
+    document.getElementById('btn-sound-toggle').addEventListener('click', () => {
+      sounds.enabled = !sounds.enabled;
+      document.getElementById('btn-sound-toggle').innerText = sounds.enabled ? '🔊' : '🔇';
+      showToast(sounds.enabled ? 'Sound Enabled' : 'Sound Muted');
+    });
+
+    // Rules
+    document.getElementById('btn-rules').addEventListener('click', () => {
+      openModal('modal-rules');
+    });
+
+    // Open Menu
+    document.getElementById('btn-open-menu').addEventListener('click', () => {
+      openModal('modal-menu');
+    });
+
+    // Play again
+    document.getElementById('btn-play-again').addEventListener('click', () => {
+      closeModal('modal-victory');
+      openModal('modal-menu');
+    });
+
+    // Mode selectors
+    document.getElementById('btn-mode-passplay').addEventListener('click', () => {
+      this.gameMode = 'passplay';
+      closeModal('modal-menu');
+      this.initGame();
+      showToast('Local Pass & Play Started!');
+    });
+
+    document.getElementById('btn-mode-computer').addEventListener('click', () => {
+      this.gameMode = 'computer';
+      closeModal('modal-menu');
+      this.initGame();
+      showToast('Game Started vs Computer!');
+    });
+
+    document.getElementById('btn-mode-online').addEventListener('click', () => {
+      closeModal('modal-menu');
+      openModal('modal-online');
+    });
+
+    // Player Count Buttons
+    document.querySelectorAll('.opt-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.playerCount = parseInt(btn.dataset.players, 10);
+      });
+    });
+
+    document.getElementById('btn-start-game').addEventListener('click', () => {
+      closeModal('modal-menu');
+      this.initGame();
+      showToast(`${this.playerCount} Players Game Started!`);
+    });
+
+    // Online Multiplayer Buttons
+    document.getElementById('btn-create-room').addEventListener('click', () => {
+      this.createOnlineRoom();
+    });
+
+    document.getElementById('btn-join-room').addEventListener('click', () => {
+      const code = document.getElementById('join-room-input').value.trim();
+      if (code.length === 6) {
+        this.joinOnlineRoom(code);
+      } else {
+        showToast('Please enter a valid 6-digit code');
+      }
+    });
+
+    document.getElementById('btn-online-launch').addEventListener('click', () => {
+      closeModal('modal-online');
+      this.gameMode = 'online';
+      this.initGame();
+      showToast(`Online Room ${this.onlineRoomId} Launched!`);
+    });
+  }
+
+  // --- ONLINE MULTIPLAYER ENGINE (Realtime Broadcast & Firebase fallback) ---
+  createOnlineRoom() {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    this.onlineRoomId = code;
+    this.isHost = true;
+    this.myOnlinePlayer = 'blue';
+
+    document.getElementById('display-room-code').innerText = code;
+    document.getElementById('room-active-section').style.display = 'flex';
+    document.getElementById('room-status-desc').innerText = 'Room created! Share code with your friends.';
+
+    this.initBroadcastSync(code);
+    showToast(`Room ${code} Created!`);
+  }
+
+  joinOnlineRoom(code) {
+    this.onlineRoomId = code;
+    this.isHost = false;
+    this.myOnlinePlayer = 'green';
+
+    this.initBroadcastSync(code);
+    closeModal('modal-online');
+    this.gameMode = 'online';
+    this.initGame();
+    showToast(`Joined Room ${code}!`);
+  }
+
+  initBroadcastSync(roomId) {
+    // Zero-config cross-tab / local network real-time channel
+    if ('BroadcastChannel' in window) {
+      if (this.broadcastChannel) this.broadcastChannel.close();
+      this.broadcastChannel = new BroadcastChannel(`ludo_room_${roomId}`);
+      this.broadcastChannel.onmessage = (ev) => {
+        const msg = ev.data;
+        if (msg.type === 'SYNC_STATE') {
+          this.receiveOnlineState(msg.state);
+        }
+      };
+    }
+  }
+
+  syncOnlineState() {
+    if (this.gameMode !== 'online' || !this.onlineRoomId) return;
+    const statePayload = {
+      pawns: this.pawns.map(p => ({ player: p.player, id: p.id, stepCount: p.stepCount })),
+      currentTurnIndex: this.currentTurnIndex,
+      currentDice: this.currentDice,
+      diceState: this.diceState,
+      winner: this.winner
+    };
+
+    if (this.broadcastChannel) {
+      this.broadcastChannel.postMessage({ type: 'SYNC_STATE', state: statePayload });
+    }
+  }
+
+  receiveOnlineState(state) {
+    if (!state) return;
+    this.pawns.forEach(p => {
+      const match = state.pawns.find(sp => sp.player === p.player && sp.id === p.id);
+      if (match) p.stepCount = match.stepCount;
+    });
+    this.currentTurnIndex = state.currentTurnIndex;
+    this.currentDice = state.currentDice;
+    this.diceState = state.diceState;
+    this.winner = state.winner;
+    this.showDiceFace(this.currentDice);
+    this.updateHUD();
+  }
+}
+
+// --- MODAL UTILS ---
+function openModal(id) {
+  const m = document.getElementById(id);
+  if (m) m.classList.add('open');
+}
+
+function closeModal(id) {
+  const m = document.getElementById(id);
+  if (m) m.classList.remove('open');
+}
+
+// --- TOAST NOTIFICATIONS ---
+let toastTimer = null;
+function showToast(msg) {
+  const toast = document.getElementById('toast-msg');
+  toast.innerText = msg;
+  toast.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('show');
+  }, 2400);
+}
+
+// --- CONFETTI SYSTEM ---
+function startConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const particles = [];
+  const colors = ['#ffd700', '#e53935', '#2e7d32', '#1976d2', '#ff5722', '#ffffff'];
+
+  for (let i = 0; i < 150; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height - canvas.height,
+      size: Math.random() * 8 + 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      vx: Math.random() * 4 - 2,
+      vy: Math.random() * 4 + 3,
+      rot: Math.random() * 360,
+      vrot: Math.random() * 10 - 5
+    });
+  }
+
+  let duration = 180;
+  function loop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vrot;
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p.rot * Math.PI) / 180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+      ctx.restore();
+    });
+
+    duration--;
+    if (duration > 0) {
+      requestAnimationFrame(loop);
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+// --- BOOTSTRAP ---
+window.addEventListener('DOMContentLoaded', () => {
+  window.game = new LudoGame();
+});
+</script>
+</body>
+</html>
